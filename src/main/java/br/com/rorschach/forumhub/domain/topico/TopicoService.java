@@ -1,92 +1,39 @@
 package br.com.rorschach.forumhub.domain.topico;
 
-import br.com.rorschach.forumhub.domain.curso.Curso;
 import br.com.rorschach.forumhub.domain.curso.CursoRepository;
 import br.com.rorschach.forumhub.domain.topico.dto.DadosCadastroTopico;
 import br.com.rorschach.forumhub.domain.usuario.Usuario;
 import br.com.rorschach.forumhub.domain.usuario.UsuarioRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import br.com.rorschach.forumhub.domain.topico.dto.DadosListagemTopico;
-import java.util.List;
-import br.com.rorschach.forumhub.domain.topico.dto.DadosDetalhamentoTopico;
-import jakarta.transaction.Transactional;
-import br.com.rorschach.forumhub.domain.topico.dto.DadosAtualizacaoTopico;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-
-import java.time.LocalDateTime;
 
 @Service
 public class TopicoService {
 
-    private final TopicoRepository repository;
-    private final UsuarioRepository usuarioRepository;
-    private final CursoRepository cursoRepository;
+    @Autowired
+    private TopicoRepository topicoRepository;
 
-    public TopicoService(TopicoRepository repository,
-                         UsuarioRepository usuarioRepository,
-                         CursoRepository cursoRepository) {
-        this.repository = repository;
-        this.usuarioRepository = usuarioRepository;
-        this.cursoRepository = cursoRepository;
-    }
+    @Autowired
+    private UsuarioRepository usuarioRepository;
 
-    public Topico cadastrar(DadosCadastroTopico dados) {
+    @Autowired
+    private CursoRepository cursoRepository;
 
-        Usuario autor = usuarioRepository.findById(dados.autorId())
-                .orElseThrow();
+    public Topico criar(DadosCadastroTopico dados, String loginUsuario) {
+        // 1. Busca o usuário logado (o subject do token)
+        var usuario = (Usuario) usuarioRepository.findByLogin(loginUsuario);
+        if (usuario == null) {
+            throw new RuntimeException("Usuário não encontrado!");
+        }
 
-        Curso curso = cursoRepository.findById(dados.cursoId())
-                .orElseThrow();
+        // 2. Busca o curso pelo nome enviado no JSON
+        var curso = cursoRepository.findByNome(dados.nomeCurso());
+        if (curso == null) {
+            throw new RuntimeException("Curso não encontrado!");
+        }
 
-        Topico topico = new Topico();
-        topico.setTitulo(dados.titulo());
-        topico.setMensagem(dados.mensagem());
-        topico.setDataCriacao(LocalDateTime.now());
-        topico.setStatus("ABERTO");
-        topico.setAutor(autor);
-        topico.setCurso(curso);
-
-        return repository.save(topico);
-    }
-
-    public List<DadosListagemTopico> listar() {
-        return repository.findAll().stream()
-                .map(t -> new DadosListagemTopico(
-                        t.getId(),
-                        t.getTitulo(),
-                        t.getMensagem(),
-                        t.getDataCriacao(),
-                        t.getStatus()
-                ))
-                .toList();
-    }
-
-    public DadosDetalhamentoTopico detalhar(Long id) {
-        Topico topico = repository.findById(id)
-                .orElseThrow();
-
-        return new DadosDetalhamentoTopico(
-                topico.getId(),
-                topico.getTitulo(),
-                topico.getMensagem(),
-                topico.getDataCriacao(),
-                topico.getStatus()
-        );
-
-    }
-
-    @Transactional
-    public void atualizar(DadosAtualizacaoTopico dados) {
-
-        Topico topico = repository.findById(dados.id())
-                .orElseThrow();
-
-        topico.setTitulo(dados.titulo());
-        topico.setMensagem(dados.mensagem());
-    }
-
-    public void excluir(Long id) {
-        repository.deleteById(id);
+        // 3. Cria e salva o tópico
+        var topico = new Topico(dados.titulo(), dados.mensagem(), usuario, curso);
+        return topicoRepository.save(topico);
     }
 }

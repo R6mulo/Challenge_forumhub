@@ -6,7 +6,6 @@ import lombok.*;
 @Table(name = "cursos")
 @Entity(name = "Curso")
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(of = "id")
@@ -18,4 +17,5 @@ public class Curso {
 
     private String nome;
     private String categoria;
+
 }
